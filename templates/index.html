@@ -3,39 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Recommendation Agent</title>
+    <title>Complete Product Recommender</title>
     <link rel="stylesheet" href="/static/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
-        <h1><i class="fas fa-suitcase"></i> Product Recommendation Agent</h1>
-        <p class="subtitle">Get personalized packing suggestions based on your destination and weather</p>
+        <h1><i class="fas fa-shopping-cart"></i> Product Recommender</h1>
         
-        <div class="form-container">
-            <div class="form-group">
-                <label for="userPrompt"><i class="fas fa-comment-alt"></i> Tell us about your trip:</label>
-                <textarea id="userPrompt" placeholder="E.g., 'I'm going on a beach vacation to Miami'"></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label for="location"><i class="fas fa-map-marker-alt"></i> Destination:</label>
-                <input type="text" id="location" placeholder="E.g., 'New York' or '90210'">
-            </div>
-            
-            <div class="form-group">
-                <label for="date"><i class="far fa-calendar-alt"></i> Travel Date (optional):</label>
-                <input type="date" id="date">
-            </div>
-            
+        <div class="search-box">
+            <textarea id="userPrompt" placeholder="What products are you looking for?"></textarea>
             <button id="recommendBtn">
-                <i class="fas fa-search"></i> Get Recommendations
+                <i class="fas fa-search"></i> Find Products
             </button>
         </div>
         
         <div id="loading" class="hidden">
             <div class="spinner"></div>
-            <p>Analyzing destination and finding perfect products...</p>
+            <p>Searching our inventory...</p>
         </div>
         
         <div id="error" class="hidden">
@@ -43,12 +28,14 @@
         </div>
         
         <div id="results" class="hidden">
-            <h2><i class="fas fa-box-open"></i> Recommended Products</h2>
-            <div id="recommendations"></div>
+            <div class="text-recs">
+                <h2><i class="fas fa-list"></i> Recommendations</h2>
+                <div id="textRecommendations"></div>
+            </div>
             
-            <div class="weather-info">
-                <h3><i class="fas fa-cloud-sun"></i> Weather Analysis</h3>
-                <div id="weatherDetails"></div>
+            <div class="products-container">
+                <h2><i class="fas fa-box-open"></i> Product Details</h2>
+                <div id="productsGrid" class="products-grid"></div>
             </div>
         </div>
     </div>

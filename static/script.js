@@ -6,11 +6,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     recommendBtn.addEventListener('click', async function() {
         const userPrompt = document.getElementById('userPrompt').value.trim();
-        const location = document.getElementById('location').value.trim();
-        const date = document.getElementById('date').value;
         
-        if (!userPrompt || !location) {
-            showError('Please fill in both the trip description and destination fields');
+        if (!userPrompt) {
+            showError('Please describe what you need');
             return;
         }
         
@@ -22,57 +20,64 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('/recommend', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    user_prompt: userPrompt,
-                    location: location,
-                    date: date || null
+                    user_prompt: userPrompt
                 })
             });
             
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'API request failed');
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to get recommendations');
             }
             
             const data = await response.json();
             displayResults(data);
             
         } catch (error) {
-            console.error('Error:', error);
-            showError(error.message || 'Failed to get recommendations. Please try again.');
+            showError(error.message);
         } finally {
             loadingDiv.classList.add('hidden');
         }
     });
     
     function displayResults(data) {
-        const recommendationsDiv = document.getElementById('recommendations');
-        const weatherDiv = document.getElementById('weatherDetails');
-        
-        // Format recommendations
-        recommendationsDiv.innerHTML = data.recommendations 
-            ? data.recommendations.replace(/\n/g, '<br>') 
+        // Display text recommendations
+        const textRecsDiv = document.getElementById('textRecommendations');
+        textRecsDiv.innerHTML = data.text_recommendations 
+            ? data.text_recommendations.replace(/\n/g, '<br>') 
             : '<p>No recommendations generated</p>';
         
-        // Format weather info
-        weatherDiv.innerHTML = `
-            <p><strong>Location:</strong> ${data.location}</p>
-            <p><strong>Season:</strong> ${data.season}</p>
-            ${
-                data.weather.temperature !== 'unknown'
-                ? `
-                    <p><strong>Temperature:</strong> ${data.weather.temperature}°C (Feels like ${data.weather.feels_like}°C)</p>
-                    <p><strong>Conditions:</strong> ${data.weather.conditions}</p>
-                    <p><strong>Humidity:</strong> ${data.weather.humidity}%</p>
-                    <p><strong>Wind Speed:</strong> ${data.weather.wind_speed} km/h</p>
-                    ${data.weather.precipitation > 0 ? `<p><strong>Precipitation:</strong> ${data.weather.precipitation} mm</p>` : ''}
-                  `
-                : '<p>Weather data unavailable</p>'
-            }
-        `;
+        // Display products
+        const productsGrid = document.getElementById('productsGrid');
+        productsGrid.innerHTML = '';
+        
+        if (data.products && data.products.length > 0) {
+            data.products.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'product-card';
+                productCard.innerHTML = `
+                    <div class="product-image-container">
+                        <img src="${product.thumbnail}" alt="${product.title}" class="product-image" onerror="this.src='/static/no-image.png'">
+                    </div>
+                    <div class="product-details">
+                        <h3 class="product-title">${product.title}</h3>
+                        <div class="product-brand">Brand: ${product.brand}</div>
+                        <div class="product-price">${product.price}</div>
+                        <div class="product-stock">Stock: ${product.stock}</div>
+                        <div class="product-rating">
+                            ${'★'.repeat(Math.round(product.rating))}${'☆'.repeat(5 - Math.round(product.rating))} 
+                            (${product.rating.toFixed(1)})
+                        </div>
+                        <p class="product-description">${product.description}</p>
+                    </div>
+                `;
+                productsGrid.appendChild(productCard);
+            });
+        } else {
+            productsGrid.innerHTML = '<p class="no-products">No product details found</p>';
+        }
         
         resultsDiv.classList.remove('hidden');
     }

@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_groq import ChatGroq
-from langserve import add_routes
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -11,8 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import requests
 import os
 from dotenv import load_dotenv
-from datetime import datetime
 import logging
+import re
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -20,23 +19,14 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-# Load environment variables
-groq_api_key = os.getenv("GROQ_API_KEY")
-weather_api_key = os.getenv("WEATHERAPI_API_KEY")
-
-# Initialize Groq model
-model = ChatGroq(model="Gemma2-9b-It", groq_api_key=groq_api_key)
-
 # Define request model
 class RecommendationRequest(BaseModel):
     user_prompt: str
-    location: str
-    date: str = None
 
 app = FastAPI(
-    title="Product Recommendation Agent",
-    description="An AI agent that recommends products based on user needs, location, weather, and season.",
-    version="1.0.0"
+    title="Complete Product Recommender",
+    description="Displays products with images, prices, and all details",
+    version="6.0"
 )
 
 app.add_middleware(
@@ -50,77 +40,66 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-def get_uv_risk(uv_index: float):
-    if uv_index <= 2: return "Low"
-    elif uv_index <= 5: return "Moderate"
-    elif uv_index <= 7: return "High"
-    elif uv_index <= 10: return "Very High"
-    else: return "Extreme"
+model = ChatGroq(model="Gemma2-9b-It", groq_api_key=os.getenv("GROQ_API_KEY"))
 
-def get_weather(location: str):
-    base_url = "http://api.weatherapi.com/v1/current.json"
-    params = {'key': weather_api_key, 'q': location, 'aqi': 'no'}
+def search_dummyjson_products(query: str, limit: int = 5):
+    """Search products on DummyJSON API"""
     try:
-        response = requests.get(base_url, params=params, timeout=5)
+        response = requests.get(
+            "https://dummyjson.com/products/search",
+            params={'q': query, 'limit': limit},
+            timeout=10
+        )
         response.raise_for_status()
-        data = response.json()
-        current = data['current']
-        return {
-            'temperature': current['temp_c'],
-            'conditions': current['condition']['text'],
-            'description': current['condition']['text'],
-            'humidity': current['humidity'],
-            'wind_speed': current['wind_kph'],
-            'feels_like': current['feelslike_c'],
-            'uv_index': current['uv'],
-            'is_day': current['is_day'] == 1,
-            'precipitation': current['precip_mm']
-        }
+        products = response.json().get('products', [])
+        
+        # Format product data consistently
+        formatted_products = []
+        for product in products:
+            formatted_products.append({
+                'id': product.get('id'),
+                'title': product.get('title', 'Unknown Product'),
+                'description': product.get('description', 'No description available'),
+                'price': f"${product.get('price', 0):.2f}",
+                'discount': product.get('discountPercentage', 0),
+                'rating': product.get('rating', 0),
+                'stock': product.get('stock', 0),
+                'brand': product.get('brand', 'Unknown Brand'),
+                'category': product.get('category', 'Uncategorized'),
+                'thumbnail': product.get('thumbnail', '/static/no-image.png'),
+                'images': product.get('images', [])
+            })
+        return formatted_products
     except Exception as e:
-        logger.error(f"Weather API error: {str(e)}")
-        return None
-
-def get_product_categories():
-    try:
-        response = requests.get("https://dummyjson.com/products/categories", timeout=5)
-        response.raise_for_status()
-        categories = response.json()
-        if isinstance(categories, list):
-            return [str(category) for category in categories]
-        return []
-    except Exception as e:
-        logger.error(f"Categories API error: {str(e)}")
+        logger.error(f"Product search error: {str(e)}")
         return []
 
-def get_season(date_str: str = None):
-    date = datetime.strptime(date_str, "%Y-%m-%d") if date_str else datetime.now()
-    month = date.month
-    if month in [12, 1, 2]: return "winter"
-    elif month in [3, 4, 5]: return "spring"
-    elif month in [6, 7, 8]: return "summer"
-    else: return "autumn"
+def extract_product_names(text_recommendations: str):
+    """Extract product names from AI recommendations"""
+    product_names = []
+    for line in text_recommendations.split('\n'):
+        if line.strip().startswith('-'):
+            # Extract product name before parenthesis
+            product_name = re.sub(r'\(.*?\)', '', line[1:]).strip()
+            product_names.append(product_name)
+    return product_names
 
-system_template = """
-You are a professional product recommendation assistant. Recommend products based on:
-1. User's request: {user_prompt}
-2. Weather: {weather_conditions} ({temperature}°C, feels like {feels_like}°C)
-3. Season: {season}
-4. UV Index: {uv_index} ({uv_risk})
-5. Precipitation: {precipitation} mm
-6. Time: {day_night}
+system_prompt = """
+You are a shopping assistant that recommends real products from our inventory.
+When user asks: {user_prompt}
 
-Guidelines:
-- Recommend specific, practical products
-- Consider weather and season
-- Provide brief explanations
-- Format as bullet points
-- Only suggest plausible products
+Recommend 3-5 specific products with:
+- Exact product names that exist in our database
+- Brief reason for recommendation in parentheses
+- Format: "- Product Name (reason)"
 
-Available Categories: {categories}
+Example:
+- iPhone 15 (latest model with great camera)
+- Samsung Galaxy Book3 (powerful laptop for work)
 """
 
 prompt_template = ChatPromptTemplate.from_messages([
-    ("system", system_template),
+    ("system", system_prompt),
     ("user", "{user_prompt}")
 ])
 
@@ -133,50 +112,27 @@ async def read_root():
 @app.post("/recommend")
 async def recommend_products(request: RecommendationRequest):
     try:
-        weather = get_weather(request.location) or {
-            'temperature': 'unknown', 'feels_like': 'unknown',
-            'conditions': 'unknown', 'description': 'unknown',
-            'humidity': 'unknown', 'wind_speed': 'unknown',
-            'uv_index': 'unknown', 'precipitation': 'unknown',
-            'is_day': True
-        }
+        # Get text recommendations from AI
+        text_recs = chain.invoke({"user_prompt": request.user_prompt})
         
-        uv_risk = get_uv_risk(weather['uv_index']) if weather['uv_index'] != 'unknown' else "unknown"
-        season = get_season(request.date)
-        categories = get_product_categories()
-        categories_str = ", ".join(categories) if categories else "No categories available"
+        # Extract product names from recommendations
+        product_names = extract_product_names(text_recs)
         
-        inputs = {
-            "user_prompt": request.user_prompt,
-            "location": request.location,
-            "temperature": weather['temperature'],
-            "feels_like": weather['feels_like'],
-            "weather_conditions": weather['conditions'],
-            "weather_description": weather['description'],
-            "humidity": weather['humidity'],
-            "wind_speed": weather['wind_speed'],
-            "uv_index": weather['uv_index'],
-            "uv_risk": uv_risk,
-            "precipitation": weather['precipitation'],
-            "day_night": "Day" if weather['is_day'] else "Night",
-            "season": season,
-            "categories": categories_str
-        }
-        
-        recommendations = chain.invoke(inputs)
+        # Search for each product in DummyJSON
+        products = []
+        for name in product_names[:5]:  # Limit to 5 products
+            found_products = search_dummyjson_products(name, limit=1)
+            if found_products:
+                products.append(found_products[0])  # Take the first match
         
         return {
-            "recommendations": recommendations,
-            "weather": weather,
-            "season": season,
-            "location": request.location
+            "text_recommendations": text_recs,
+            "products": products
         }
         
     except Exception as e:
         logger.error(f"Recommendation error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-add_routes(app, chain, path="/chain")
 
 if __name__ == "__main__":
     import uvicorn

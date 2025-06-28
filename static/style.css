@@ -2,7 +2,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
     color: #333;
-    max-width: 800px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
     background-color: #f5f7fa;
@@ -17,98 +17,133 @@ body {
 
 h1, h2, h3 {
     color: #2c3e50;
-    margin-top: 0;
 }
 
-h1 {
-    text-align: center;
-    margin-bottom: 10px;
-}
-
-p.subtitle {
-    text-align: center;
-    color: #7f8c8d;
+.search-box {
     margin-bottom: 30px;
 }
 
-.form-container {
-    background: #f8f9fa;
-    padding: 20px;
-    border-radius: 8px;
-    margin: 20px 0;
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #34495e;
-}
-
-input[type="text"],
-input[type="date"],
 textarea {
     width: 100%;
-    padding: 10px;
+    padding: 15px;
     border: 1px solid #ddd;
-    border-radius: 4px;
+    border-radius: 8px;
     font-size: 16px;
-    box-sizing: border-box;
-}
-
-textarea {
     min-height: 100px;
     resize: vertical;
+    margin-bottom: 15px;
 }
 
 button {
     background-color: #3498db;
     color: white;
     border: none;
-    padding: 12px 20px;
-    border-radius: 4px;
-    cursor: pointer;
+    padding: 15px;
+    border-radius: 8px;
     font-size: 16px;
+    cursor: pointer;
     width: 100%;
     transition: background-color 0.3s;
-    font-weight: bold;
 }
 
 button:hover {
     background-color: #2980b9;
 }
 
-#recommendations {
+/* Results styling */
+.text-recs {
     background: #e8f4fc;
     padding: 20px;
     border-radius: 8px;
-    margin: 20px 0;
+    margin-bottom: 30px;
     line-height: 1.8;
 }
 
-.weather-info {
-    background: #f0f8ff;
-    padding: 20px;
-    border-radius: 8px;
-    margin-top: 20px;
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 25px;
 }
 
+.product-card {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+}
+
+.product-image-container {
+    height: 200px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+}
+
+.product-image {
+    max-height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+}
+
+.product-details {
+    padding: 20px;
+}
+
+.product-title {
+    font-size: 1.2em;
+    margin: 0 0 5px 0;
+    color: #2c3e50;
+}
+
+.product-brand {
+    color: #7f8c8d;
+    font-size: 0.9em;
+    margin-bottom: 10px;
+}
+
+.product-price {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #27ae60;
+    margin: 10px 0;
+}
+
+.product-stock {
+    color: #3498db;
+    margin-bottom: 10px;
+}
+
+.product-rating {
+    color: #f39c12;
+    margin-bottom: 10px;
+}
+
+.product-description {
+    color: #555;
+    font-size: 0.9em;
+    margin-top: 10px;
+}
+
+/* Loading and error states */
 .hidden {
     display: none;
 }
 
 .spinner {
-    border: 4px solid rgba(0, 0, 0, 0.1);
+    border: 5px solid rgba(0, 0, 0, 0.1);
     border-radius: 50%;
-    border-top: 4px solid #3498db;
-    width: 30px;
-    height: 30px;
+    border-top: 5px solid #3498db;
+    width: 50px;
+    height: 50px;
     animation: spin 1s linear infinite;
-    margin: 0 auto 15px;
+    margin: 20px auto;
 }
 
 @keyframes spin {
@@ -120,18 +155,31 @@ button:hover {
     color: #e74c3c;
     background: #fdecea;
     padding: 15px;
-    border-radius: 4px;
+    border-radius: 8px;
     border-left: 4px solid #e74c3c;
-    margin: 20px 0;
+}
+
+.no-products {
+    text-align: center;
+    color: #7f8c8d;
+    padding: 20px;
 }
 
 /* Responsive design */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
+    .products-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 480px) {
     body {
         padding: 10px;
     }
-    
     .container {
         padding: 15px;
+    }
+    .products-grid {
+        grid-template-columns: 1fr;
     }
 }
